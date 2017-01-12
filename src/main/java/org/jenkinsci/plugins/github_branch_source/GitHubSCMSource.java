@@ -774,7 +774,12 @@ public class GitHubSCMSource extends AbstractGitSCMSource {
             }
             return new PullRequestSCMRevision((PullRequestSCMHead) head, baseHash, pr.getHead().getSha());
         } else {
-            return new SCMRevisionImpl(head, repo.getRef("heads/" + head.getName()).getObject().getSha());
+            // this is a dirty hack and I should feel bad for doing this
+            try {
+                return new SCMRevisionImpl(head, repo.getRef("heads/" + head.getName()).getObject().getSha());
+            } catch (FileNotFoundException e) {
+                return new SCMRevisionImpl(head, repo.getRef("tags/" + head.getName()).getObject().getSha());
+            }
         }
     }
 
