@@ -79,6 +79,7 @@ import jenkins.scm.api.SCMSourceCriteria;
 import jenkins.scm.api.SCMSourceDescriptor;
 import jenkins.scm.api.SCMSourceEvent;
 import jenkins.scm.api.SCMSourceOwner;
+import jenkins.scm.api.mixin.TagSCMHead;
 import jenkins.scm.api.metadata.ObjectMetadataAction;
 import jenkins.scm.api.metadata.PrimaryInstanceMetadataAction;
 import jenkins.scm.impl.ChangeRequestSCMHeadCategory;
@@ -529,8 +530,17 @@ public class GitHubSCMSource extends AbstractGitSCMSource {
                     }
                     continue;
                 }
-                boolean trusted = collaboratorNames != null
-                        && collaboratorNames.contains(ghPullRequest.getHead().getRepository().getOwnerName());
+
+                boolean trusted;
+
+                try {
+                    trusted = collaboratorNames != null && collaboratorNames.contains(ghPullRequest.getHead().getRepository().getOwnerName());
+                }
+                catch(NullPointerException e ){
+                    // If someone is removed from a private repository but has an open PR
+                    continue;
+                }
+
                 if (!trusted) {
                     listener.getLogger().format("    (not from a trusted source)%n");
                 }
@@ -694,12 +704,13 @@ public class GitHubSCMSource extends AbstractGitSCMSource {
             List<GHTag> tagList = repo.listTags().asList();
 
             for (GHTag tag: tagList) {
-                SCMHead taghead = new BranchSCMHead(tag.getName());
+                SCMHead taghead = new TagSCMHead(tag.getName());
                 SCMRevision taghash = new SCMRevisionImpl(taghead, tag.getCommit().getSHA1());
 
                 listener.getLogger().format("    Tag: %s SHA: %s %n", tag.getName(), tag.getCommit().getSHA1());
 
                 observer.observe(taghead, taghash);
+
                 if (!observer.isObserving()) {
                     listener.getLogger().format("    Error: Observer is not Observing.");
                     return;
